@@ -43,6 +43,8 @@ def main():
     # 初始化AI生成器
     print("正在初始化AI生成器...")
     ai_generator = AIGenerator()
+    print(f"使用模型: {ai_generator.model_name}")
+    print(f"Ollama服务地址: {ai_generator.base_url}")
     
     # 初始化文档生成器
     print("正在初始化文档生成器...")

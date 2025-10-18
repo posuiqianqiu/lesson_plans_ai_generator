@@ -1,9 +1,9 @@
 from docx import Document
 import os
 
-# Ensure the test_data directory exists
-if not os.path.exists('test_data'):
-    os.makedirs('test_data')
+# Ensure the data directory exists
+if not os.path.exists('data'):
+    os.makedirs('data')
 
 # --- Create syllabus.docx ---
 syllabus_doc = Document()
@@ -15,7 +15,7 @@ syllabus_doc.add_paragraph('教学活动：包括课堂讲授、案例分析、�
 syllabus_doc.add_paragraph('教学资源：教材、在线教程、编程工具、实验环境等。')
 syllabus_doc.add_paragraph('教学反思：定期回顾教学过程，优化教学方法。')
 syllabus_doc.add_paragraph('教学评价：通过作业、测验、项目等多种方式评价学生学习效果。')
-syllabus_doc.save('test_data/syllabus.docx')
+syllabus_doc.save('data/syllabus.docx')
 
 
 # --- Create template.docx ---
@@ -26,8 +26,8 @@ template_doc.add_paragraph('课次：{{lesson}}')
 template_doc.add_paragraph('章节内容：{{chapter_content}}')
 template_doc.add_paragraph('课时：{{class_hours}}')
 
-template_doc.add_heading('单元教学目标', level=2)
-template_doc.add_paragraph('{{单元教学目标}}')
+template_doc.add_heading('教学目标', level=2)
+template_doc.add_paragraph('{{教学目标}}')
 
 template_doc.add_heading('教学重点', level=2)
 template_doc.add_paragraph('{{教学重点}}')
@@ -47,5 +47,5 @@ template_doc.add_paragraph('{{教学反思}}')
 template_doc.add_heading('教学评价', level=2)
 template_doc.add_paragraph('{{教学评价}}')
 
-template_doc.save('test_data/template.docx')
-print("test_data/template.docx created successfully.")
+template_doc.save('data/template.docx')
+print("data/template.docx created successfully.")

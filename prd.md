@@ -99,7 +99,7 @@ python main.py -s "进度表.xlsx" -y "大纲.docx" -t "模板.docx" -w "1-16"
 使用占位符标记需要生成的内容：
 ```
 授课章节：{授课章节}
-单元教学目标：{单元教学目标}
+教学目标：{教学目标}
 教学重点：{教学重点}
 教学难点：{教学难点}
 ```
@@ -114,7 +114,7 @@ python main.py -s "进度表.xlsx" -y "大纲.docx" -t "模板.docx" -w "1-16"
 ### 6.2 关键字段提示词示例
 ```python
 PROMPT_TEMPLATES = {
-    "单元教学目标": """
+    "教学目标": """
 作为高职院校{course_name}课程教师，请为第{week}周第{lesson}次课设计教学目标：
 章节内容：{chapter_content}
 

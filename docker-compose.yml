@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    container_name: lesson_plan_ai_generator
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+    command: python main.py -s test_data/schedule.xlsx -y test_data/syllabus.docx -t test_data/template.docx
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434

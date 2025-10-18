@@ -54,10 +54,10 @@ pip install python-docx pandas requests openpyxl
 ### 运行方法
 ```bash
 # 单次生成示例
-python main.py -s "test_data/schedule.xlsx" -y "test_data/syllabus.docx" -t "test_data/template.docx"
+python main.py -s "data/schedule.xlsx" -y "data/syllabus.docx" -t "data/template.docx"
 
 # 批量生成示例  
-python main.py -s "test_data/schedule.xlsx" -y "test_data/syllabus.docx" -t "test_data/template.docx" -w "1-16"
+python main.py -s "data/schedule.xlsx" -y "data/syllabus.docx" -t "data/template.docx" -w "1-16"
 ```
 
 ## 开发规范

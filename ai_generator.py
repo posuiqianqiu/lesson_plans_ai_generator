@@ -1,17 +1,22 @@
 import requests
 import json
+import os
+from tqdm import tqdm
 
 class AIGenerator:
     """AI生成引擎：调用本地Ollama模型生成各教案字段内容"""
     
-    def __init__(self, model_name="qwen3:1.7b"):
+    def __init__(self):
         """
         初始化AI生成器
-        :param model_name: Ollama模型名称
+        从环境变量读取Ollama配置，确保在Docker和本地都能运行
         """
-        self.model_name = model_name
-        self.base_url = "http://localhost:11434"
-        self._check_ollama_status()
+        self.model_name = os.getenv("OLLAMA_MODEL", "qwen3:1.7b")
+        self.base_url = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip('/')
+        
+        # 在Docker容器内部运行时，不需要检查localhost
+        if "OLLAMA_HOST" not in os.environ:
+            self._check_ollama_status()
         
         # 提示词模板
         self.prompt_templates = {
@@ -120,18 +125,32 @@ class AIGenerator:
         }
 
     def _check_ollama_status(self):
-        """检查Ollama服务状态"""
+        """检查Ollama API服务的真实状态"""
+        print(f"正在检查Ollama服务状态 ({self.base_url})...")
         try:
-            response = requests.get(self.base_url, timeout=5)
-            if response.status_code == 200 and "Ollama is running" in response.text:
-                print("Ollama 服务连接成功。")
-            else:
-                print(f"Ollama 服务连接异常: {response.status_code}")
-                exit(1)
-        except requests.exceptions.RequestException:
-            print("\n错误：无法连接到 Ollama 服务。")
-            print("请确认您已按照说明启动了 Ollama，并且服务正在 http://localhost:11434 运行。")
+            # 请求一个核心API端点，而不是根页面，以确保API服务正常
+            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
+            response.raise_for_status()  # 如果状态码不是2xx，则会引发HTTPError
+            print("Ollama API 服务连接成功，状态正常。")
+        except requests.exceptions.RequestException as e:
+            print(f"\n错误：无法连接到 Ollama API 服务。")
+            print(f"请求地址: {self.base_url}/api/tags")
+            print(f"错误详情: {e}")
+            print("\n请执行以下检查：")
+            print("1. 确认 Ollama 应用正在您的电脑上运行。")
+            print("2. 确认 Ollama 服务没有被防火墙或代理阻止。")
+            print("3. 尝试更新 Ollama 到最新版本，或重新安装。")
             exit(1)
+
+    def get_local_models(self):
+        """获取本地已下载的模型列表"""
+        try:
+            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
+            response.raise_for_status()
+            models = response.json().get('models', [])
+            return [m['name'] for m in models]
+        except Exception:
+            return ["无法获取模型列表"]
     
     def generate_content(self, prompt_type, **kwargs):
         """
@@ -162,12 +181,28 @@ class AIGenerator:
             # 解析响应
             result = response.json()
             return result.get('response', '').strip()
+        except requests.exceptions.HTTPError as e:
+            # 特别处理404错误，很可能是模型名称不对
+            if e.response.status_code == 404:
+                try:
+                    error_detail = e.response.json().get('error', '')
+                    if 'model' in error_detail and 'not found' in error_detail:
+                        tqdm.write(f"\n[AI生成错误] 模型 '{self.model_name}' 未在Ollama中找到。")
+                        tqdm.write(f"  > 您本地已有的模型: {self.get_local_models()}")
+                        tqdm.write(f"  > 请将 docker-compose.yml 或环境变量 OLLAMA_MODEL 的值修改为以上列表中的一个。")
+                    else:
+                        tqdm.write(f"[AI生成错误] 调用Ollama API时出错 (404 Not Found): {e}")
+                except json.JSONDecodeError:
+                     tqdm.write(f"[AI生成错误] 调用Ollama API时出错 (404 Not Found), 且无法解析错误响应: {e}")
+            else:
+                tqdm.write(f"[AI生成错误] 调用Ollama API时发生HTTP错误: {e}")
+            return f"[{prompt_type} 生成失败]"
         except requests.exceptions.Timeout:
-            print(f"    > 生成 {prompt_type} 超时。请检查Ollama服务或模型是否正常。")
+            tqdm.write(f"    > 生成 {prompt_type} 超时。请检查Ollama服务或模型是否正常。")
             return f"[{prompt_type} 生成超时]"
         except requests.exceptions.RequestException as e:
-            print(f"调用Ollama API时出错: {e}")
+            tqdm.write(f"调用Ollama API时发生网络错误: {e}")
             return ""
         except json.JSONDecodeError as e:
-            print(f"解析API响应时出错: {e}")
+            tqdm.write(f"解析API响应时出错: {e}")
             return ""

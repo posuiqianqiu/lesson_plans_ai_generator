@@ -13,4 +13,4 @@ data = {
 df = pd.DataFrame(data)
 
 # 保存为Excel文件
-df.to_excel('test_data/schedule.xlsx', index=False)
+df.to_excel('data/schedule.xlsx', index=False)
