@@ -11,12 +11,18 @@ class AIGenerator:
         初始化AI生成器
         从环境变量读取Ollama配置，确保在Docker和本地都能运行
         """
-        self.model_name = os.getenv("OLLAMA_MODEL", "qwen3:1.7b")
-        self.base_url = os.getenv("OLLAMA_HOST", "http://localhost:11434").rstrip('/')
-        
-        # 在Docker容器内部运行时，不需要检查localhost
-        if "OLLAMA_HOST" not in os.environ:
-            self._check_ollama_status()
+        self.model_name = os.getenv("OLLAMA_MODEL")
+        self.base_url = os.getenv("OLLAMA_HOST")
+
+        if not self.model_name or not self.base_url:
+            print("错误：缺少必要的环境变量。请在 docker-compose.yml 或您的环境中设置 OLLAMA_MODEL 和 OLLAMA_HOST。")
+            print("例如：")
+            print("  OLLAMA_MODEL=qwen3:1.7b")
+            print("  OLLAMA_HOST=http://host.docker.internal:11434")
+            exit(1)
+
+        self.base_url = self.base_url.rstrip('/')
+        self._check_ollama_status()
         
         # 提示词模板
         self.prompt_templates = {

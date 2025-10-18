@@ -11,6 +11,21 @@ class DocumentBuilder:
         :param template_path: 教案模板文件路径
         """
         self.template_path = template_path
+
+    def _replace_text_in_doc(self, doc, replacements):
+        """在文档的段落和表格中执行文本替换"""
+        for p in doc.paragraphs:
+            for key, value in replacements.items():
+                if key in p.text:
+                    p.text = p.text.replace(key, value)
+
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for p in cell.paragraphs:
+                        for key, value in replacements.items():
+                            if key in p.text:
+                                p.text = p.text.replace(key, value)
         
     def build_lesson_plan(self, lesson_data, ai_generated_content, output_path):
         """
@@ -37,18 +52,7 @@ class DocumentBuilder:
                 '{{教学评价}}': ai_generated_content.get('教学评价', ''),
             }
 
-            for p in doc.paragraphs:
-                for key, value in replacements.items():
-                    if key in p.text:
-                        p.text = p.text.replace(key, value)
-
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        for p in cell.paragraphs:
-                            for key, value in replacements.items():
-                                if key in p.text:
-                                    p.text = p.text.replace(key, value)
+            self._replace_text_in_doc(doc, replacements)
             
             doc.save(output_path)
         except Exception as e:
@@ -65,7 +69,8 @@ class DocumentBuilder:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        content_types_to_generate = ['单元教学目标', '教学重点', '教学难点', '教学活动', '教学资源', '教学反思', '教学评价']
+        # 从AI生成器获取唯一可信的内容类型列表，而不是硬编码
+        content_types_to_generate = list(ai_generator.prompt_templates.keys())
         
         # 外层循环，遍历每节课
         for lesson_data in tqdm(schedule_data, desc="总体进度", position=0):
