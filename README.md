@@ -81,20 +81,24 @@
 - 将你的输入文件放入 `test_data` 目录。
 - 运行以下命令开始生成教案：
   ```bash
-  # 默认使用 qwen:1.7b 模型
+   ### Windows CMD
+  `cmd
+  set OLLAMA_MODEL=qwen3:1.7b
+  set OLLAMA_HOST=http://localhost:11434
   python main.py -s "test_data/schedule.xlsx" -y "test_data/syllabus.docx" -t "test_data/template.docx"
-  
-  # 如果想指定其他模型，需要先设置环境变量
-  # Windows (CMD):
-  # set OLLAMA_MODEL=qwen:4b
-  # python main.py ...
-  
-  # Windows (PowerShell):
-  # $env:OLLAMA_MODEL="qwen:4b"
-  # python main.py ...
-  
-  # macOS / Linux:
-  # OLLAMA_MODEL=qwen:4b python main.py ...
+  `
+
+  ### Windows PowerShell
+  `powershell
+  $env:OLLAMA_MODEL="qwen3:1.7b"
+  $env:OLLAMA_HOST="http://localhost:11434"
+  python main.py -s "test_data/schedule.xlsx" -y "test_data/syllabus.docx" -t "test_data/template.docx"
+  `
+
+  ### macOS / Linux
+  `bash
+  OLLAMA_MODEL=qwen3:1.7b OLLAMA_HOST=http://localhost:11434 python main.py -s "test_data/schedule.xlsx" -y "test_data/syllabus.docx" -t
+  "test_data/template.docx"
   ```
 
 **第四步：获取结果**
