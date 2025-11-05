@@ -3,6 +3,21 @@ import os
 from data_parser import DataParser
 from ai_generator import AIGenerator
 from document_builder import DocumentBuilder
+from config import Config
+
+def validate_files(schedule, syllabus, template):
+    """验证输入文件"""
+    files = [
+        (schedule, "教学进度表"),
+        (syllabus, "教学大纲"),
+        (template, "教案模板")
+    ]
+    
+    for file_path, file_type in files:
+        if not os.path.exists(file_path):
+            print(f"错误：{file_type}文件不存在：{file_path}")
+            return False
+    return True
 
 def main():
     # 创建命令行参数解析器
@@ -16,17 +31,11 @@ def main():
     args = parser.parse_args()
     
     # 验证文件是否存在
-    if not os.path.exists(args.schedule):
-        print(f"错误：教学进度表文件不存在：{args.schedule}")
+    if not validate_files(args.schedule, args.syllabus, args.template):
         return
     
-    if not os.path.exists(args.syllabus):
-        print(f"错误：教学大纲文件不存在：{args.syllabus}")
-        return
-    
-    if not os.path.exists(args.template):
-        print(f"错误：教案模板文件不存在：{args.template}")
-        return
+    # 确保输出目录存在
+    Config.ensure_directories()
     
     # 解析数据
     print("正在解析教学进度表...")

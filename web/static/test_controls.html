@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>终止和暂停功能测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .log { background: #f5f5f5; padding: 10px; border-radius: 3px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; }
+        button { margin: 5px; padding: 8px 15px; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>终止和暂停功能测试</h1>
+    
+    <div class="test-section">
+        <h2>1. 上传测试文件</h2>
+        
+        <h3>教学进度表 (Excel)</h3>
+        <input type="file" id="schedule-file" accept=".xlsx,.xls">
+        <button onclick="uploadSchedule()">上传教学进度表</button>
+        
+        <h3>教学大纲 (Word)</h3>
+        <input type="file" id="syllabus-file" accept=".docx">
+        <button onclick="uploadSyllabus()">上传教学大纲</button>
+        
+        <h3>教案模板 (Word)</h3>
+        <input type="file" id="template-file" accept=".docx">
+        <button onclick="uploadTemplate()">上传教案模板</button>
+        
+        <button onclick="uploadFiles()">使用默认测试文件</button>
+        <div id="upload-log" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. 启动生成任务</h2>
+        <button onclick="startGeneration()">启动生成任务</button>
+        <div id="generation-log" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. 任务控制测试</h2>
+        <button onclick="pauseTask()">暂停任务</button>
+        <button onclick="resumeTask()">恢复任务</button>
+        <button onclick="stopTask()">终止任务</button>
+        <button onclick="checkStatus()">检查状态</button>
+        <div id="control-log" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. 组合测试</h2>
+        <button onclick="testPauseResume()">测试暂停-恢复</button>
+        <button onclick="testMultiPause()">测试多次暂停</button>
+        <button onclick="testStopWhileRunning()">测试运行中终止</button>
+        <button onclick="testStopWhilePaused()">测试暂停中终止</button>
+        <div id="combo-log" class="log"></div>
+    </div>
+
+    <script>
+        let currentTaskId = null;
+        let uploadedFiles = {};
+        
+        function log(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = type;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            container.appendChild(logEntry);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        async function uploadSchedule() {
+            const fileInput = document.getElementById('schedule-file');
+            if (!fileInput.files[0]) {
+                log('upload-log', '请选择教学进度表文件', 'warning');
+                return;
+            }
+            
+            await uploadFile(fileInput.files[0], 'schedule');
+        }
+        
+        async function uploadSyllabus() {
+            const fileInput = document.getElementById('syllabus-file');
+            if (!fileInput.files[0]) {
+                log('upload-log', '请选择教学大纲文件', 'warning');
+                return;
+            }
+            
+            await uploadFile(fileInput.files[0], 'syllabus');
+        }
+        
+        async function uploadTemplate() {
+            const fileInput = document.getElementById('template-file');
+            if (!fileInput.files[0]) {
+                log('upload-log', '请选择教案模板文件', 'warning');
+                return;
+            }
+            
+            await uploadFile(fileInput.files[0], 'template');
+        }
+        
+        async function uploadFile(file, fileType) {
+            log('upload-log', `开始上传${getFileTypeLabel(fileType)}...`, 'info');
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const response = await fetch(`/api/upload/${fileType}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    uploadedFiles[fileType] = result.file_id;
+                    log('upload-log', `${getFileTypeLabel(fileType)}上传成功: ${result.file_id}`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    log('upload-log', `${getFileTypeLabel(fileType)}上传失败: ${response.statusText} - ${errorText}`, 'error');
+                }
+            } catch (error) {
+                log('upload-log', `上传异常: ${error.message}`, 'error');
+            }
+        }
+        
+        function getFileTypeLabel(fileType) {
+            const labels = {
+                'schedule': '教学进度表',
+                'syllabus': '教学大纲',
+                'template': '教案模板'
+            };
+            return labels[fileType] || fileType;
+        }
+        
+        async function uploadFiles() {
+            log('upload-log', '使用默认测试文件...', 'info');
+            
+            // 尝试从test_data目录下载文件
+            try {
+                // 下载教学进度表
+                const scheduleResponse = await fetch('/test_data/schedule.xlsx');
+                if (scheduleResponse.ok) {
+                    const scheduleBlob = await scheduleResponse.blob();
+                    await uploadFile(new File([scheduleBlob], 'schedule.xlsx', {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), 'schedule');
+                } else {
+                    log('upload-log', '无法获取默认教学进度表文件', 'warning');
+                }
+                
+                // 下载教学大纲
+                const syllabusResponse = await fetch('/test_data/syllabus.docx');
+                if (syllabusResponse.ok) {
+                    const syllabusBlob = await syllabusResponse.blob();
+                    await uploadFile(new File([syllabusBlob], 'syllabus.docx', {type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}), 'syllabus');
+                } else {
+                    log('upload-log', '无法获取默认教学大纲文件', 'warning');
+                }
+                
+                log('upload-log', '默认文件上传完成', 'success');
+            } catch (error) {
+                log('upload-log', `默认文件上传异常: ${error.message}`, 'error');
+                log('upload-log', '请手动选择文件上传', 'info');
+            }
+        }
+        
+        async function startGeneration() {
+            if (!uploadedFiles.schedule) {
+                log('generation-log', '请先上传教学进度表', 'warning');
+                return;
+            }
+            
+            log('generation-log', '启动生成任务...', 'info');
+            
+            try {
+                const requestData = {
+                    schedule_file_id: uploadedFiles.schedule,
+                    week_range: "1-2"
+                };
+                
+                if (uploadedFiles.syllabus) {
+                    requestData.syllabus_file_id = uploadedFiles.syllabus;
+                }
+                
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    currentTaskId = result.task_id;
+                    log('generation-log', `生成任务启动成功: ${currentTaskId}`, 'success');
+                    
+                    // 开始监控任务状态
+                    startStatusMonitoring();
+                } else {
+                    log('generation-log', `启动失败: ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                log('generation-log', `启动异常: ${error.message}`, 'error');
+            }
+        }
+        
+        async function pauseTask() {
+            if (!currentTaskId) {
+                log('control-log', '没有活动任务', 'warning');
+                return;
+            }
+            
+            log('control-log', `暂停任务: ${currentTaskId}`, 'info');
+            
+            try {
+                const response = await fetch(`/api/generate/${currentTaskId}/pause`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log('control-log', `任务暂停成功: ${result.message}`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    log('control-log', `暂停失败: ${response.statusText} - ${errorText}`, 'error');
+                }
+            } catch (error) {
+                log('control-log', `暂停异常: ${error.message}`, 'error');
+            }
+        }
+        
+        async function resumeTask() {
+            if (!currentTaskId) {
+                log('control-log', '没有活动任务', 'warning');
+                return;
+            }
+            
+            log('control-log', `恢复任务: ${currentTaskId}`, 'info');
+            
+            try {
+                const response = await fetch(`/api/generate/${currentTaskId}/resume`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log('control-log', `任务恢复成功: ${result.message}`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    log('control-log', `恢复失败: ${response.statusText} - ${errorText}`, 'error');
+                }
+            } catch (error) {
+                log('control-log', `恢复异常: ${error.message}`, 'error');
+            }
+        }
+        
+        async function stopTask() {
+            if (!currentTaskId) {
+                log('control-log', '没有活动任务', 'warning');
+                return;
+            }
+            
+            log('control-log', `终止任务: ${currentTaskId}`, 'info');
+            
+            try {
+                const response = await fetch(`/api/generate/${currentTaskId}/stop`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log('control-log', `任务终止成功: ${result.message}`, 'success');
+                    currentTaskId = null;
+                } else {
+                    const errorText = await response.text();
+                    log('control-log', `终止失败: ${response.statusText} - ${errorText}`, 'error');
+                }
+            } catch (error) {
+                log('control-log', `终止异常: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkStatus() {
+            if (!currentTaskId) {
+                log('control-log', '没有活动任务', 'warning');
+                return;
+            }
+            
+            log('control-log', `检查任务状态: ${currentTaskId}`, 'info');
+            
+            try {
+                const response = await fetch(`/api/generate/status/${currentTaskId}`);
+                
+                if (response.ok) {
+                    const status = await response.json();
+                    log('control-log', `任务状态: ${JSON.stringify(status, null, 2)}`, 'info');
+                } else {
+                    const errorText = await response.text();
+                    log('control-log', `获取状态失败: ${response.statusText} - ${errorText}`, 'error');
+                }
+            } catch (error) {
+                log('control-log', `获取状态异常: ${error.message}`, 'error');
+            }
+        }
+        
+        function startStatusMonitoring() {
+            if (!currentTaskId) return;
+            
+            const monitor = setInterval(async () => {
+                if (!currentTaskId) {
+                    clearInterval(monitor);
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`/api/generate/status/${currentTaskId}`);
+                    
+                    if (response.ok) {
+                        const status = await response.json();
+                        log('generation-log', `状态更新: ${status.status} - ${status.message || ''}`, 'info');
+                        
+                        if (['completed', 'failed', 'stopped'].includes(status.status)) {
+                            clearInterval(monitor);
+                            log('generation-log', `任务结束: ${status.status}`, 'success');
+                        }
+                    }
+                } catch (error) {
+                    log('generation-log', `监控异常: ${error.message}`, 'error');
+                }
+            }, 2000);
+        }
+        
+        // 组合测试函数
+        async function testPauseResume() {
+            log('combo-log', '=== 测试暂停-恢复流程 ===', 'info');
+            
+            await startGeneration();
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            await pauseTask();
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            await resumeTask();
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            await stopTask();
+        }
+        
+        async function testMultiPause() {
+            log('combo-log', '=== 测试多次暂停 ===', 'info');
+            
+            await startGeneration();
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            await pauseTask();
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            await pauseTask(); // 应该失败
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            await stopTask();
+        }
+        
+        async function testStopWhileRunning() {
+            log('combo-log', '=== 测试运行中终止 ===', 'info');
+            
+            await startGeneration();
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            await stopTask();
+        }
+        
+        async function testStopWhilePaused() {
+            log('combo-log', '=== 测试暂停中终止 ===', 'info');
+            
+            await startGeneration();
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            await pauseTask();
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            await stopTask();
+        }
+    </script>
+</body>
+</html>
